@@ -1,0 +1,16 @@
+# Создаём виртуальное окружение 
+python -m venv venv
+venv\Scripts\activate  # Windows
+
+# Устанавливаем зависимости
+pip install django
+
+# Применяем миграции
+python manage.py makemigrations
+python manage.py migrate
+
+# Создаём суперпользователя
+python manage.py createsuperuser
+
+# Запускаем сервер
+python manage.py runserver

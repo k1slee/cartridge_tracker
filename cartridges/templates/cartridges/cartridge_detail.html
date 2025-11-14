@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Картридж {{ cartridge.serial_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Картридж {{ cartridge.serial_number }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}" class="btn btn-sm btn-outline-success me-2">
+            <i class="fas fa-exchange-alt"></i> Создать операцию
+        </a>
+        <a href="{% url 'cartridges:cartridge_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Основная информация</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Серийный номер:</th>
+                        <td>{{ cartridge.serial_number }}</td>
+                    </tr>
+                    <tr>
+                        <th>Штрих-код:</th>
+                        <td>{{ cartridge.barcode|default:"не указан" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Модель:</th>
+                        <td>{{ cartridge.model }}</td>
+                    </tr>
+                    <tr>
+                        <th>Текущий статус:</th>
+                        <td>
+                            <span class="badge 
+                                {% if cartridge.current_status == 'in_stock' %}bg-success
+                                {% elif cartridge.current_status == 'installed' %}bg-primary
+                                {% elif cartridge.current_status == 'at_service' %}bg-warning
+                                {% elif cartridge.current_status == 'disposed' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ cartridge.get_current_status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Текущая локация:</th>
+                        <td>{{ cartridge.current_location }}</td>
+                    </tr>
+                    <tr>
+                        <th>Установлен в принтере:</th>
+                        <td>
+                            {% if cartridge.installed_in_printer %}
+                                {{ cartridge.installed_in_printer }}
+                            {% else %}
+                                нет
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Дата ввода в эксплуатацию:</th>
+                        <td>{{ cartridge.date_of_introduction|date:"d.m.Y" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Количество заправок:</th>
+                        <td>{{ cartridge.refill_count }} / {{ cartridge.model.max_refills }}</td>
+                    </tr>
+                    <tr>
+                        <th>Состояние:</th>
+                        <td>
+                            <span class="badge 
+                                {% if cartridge.condition == 'new' %}bg-success
+                                {% elif cartridge.condition == 'working' %}bg-primary
+                                {% elif cartridge.condition == 'refilled' %}bg-info
+                                {% else %}bg-warning{% endif %}">
+                                {{ cartridge.get_condition_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Примечания:</th>
+                        <td>{{ cartridge.notes|default:"нет" }}</td>
+                    </tr>
+                    <tr>
+                        <th widght="40%">Серийный номер:</th>
+                        <td>{{ cartridge.serial_number}}</td>
+                    </tr>
+                    <tr>
+                        <th>Тип расходника:</th>
+                        <td>
+                            <span class = "badge {% if cartridge.consumable_type == 'drum' %} bg-info{% else %} bg-primary {% endif %}">
+                                {{cartridge.get_consumable_type_display}}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">История операций</h5>
+            </div>
+            <div class="card-body">
+                {% if operations %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Тип</th>
+                                <th>Дата</th>
+                                <th>Пользователь</th>
+                                <th>Примечания</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for operation in operations %}
+                            <tr>
+                                <td>{{ operation.get_operation_type_display }}</td>
+                                <td>{{ operation.timestamp|date:"d.m.Y H:i" }}</td>
+                                <td>{{ operation.user.username }}</td>
+                                <td>{{ operation.notes|default:"" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">Нет операций</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

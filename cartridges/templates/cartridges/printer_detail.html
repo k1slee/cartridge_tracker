@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Принтер {{ printer.name }} - Учёт картриджей{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Принтер {{ printer.name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'cartridges:printer_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Назад к списку
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Основная информация -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Основная информация
+                </h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th width="40%">Название:</th>
+                        <td>{{ printer.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Модель:</th>
+                        <td>{{ printer.model }}</td>
+                    </tr>
+                    <tr>
+                        <th>Серийный номер:</th>
+                        <td>{{ printer.serial_number }}</td>
+                    </tr>
+                    <tr>
+                        <th>Тип принтера:</th>
+                        <td>
+                            <span class="badge 
+                                {% if printer.printer_type == 'laser' %}bg-primary
+                                {% elif printer.printer_type == 'inkjet' %}bg-info
+                                {% else %}bg-secondary{% endif %}">
+                                {{ printer.get_printer_type_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>На чернилах:</th>
+                        <td>
+                            {% if printer.is_inkjet %}
+                                <span class="badge bg-success">Да</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Нет</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Локация:</th>
+                        <td>{{ printer.location.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Дата установки:</th>
+                        <td>{{ printer.installation_date|date:"d.m.Y" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Статус:</th>
+                        <td>
+                            {% if printer.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                            {% else %}
+                                <span class="badge bg-danger">Неактивен</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Примечания:</th>
+                        <td>{{ printer.notes|default:"нет"|linebreaks }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Установленные расходники -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cogs me-2"></i>Установленные расходники
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if installed_consumables %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Тип</th>
+                                <th>Серийный номер</th>
+                                <th>Модель</th>
+                                <th>Состояние</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for consumable in installed_consumables %}
+                            <tr>
+                                <td>
+                                    <span class="badge {% if consumable.consumable_type == 'drum' %}bg-info{% else %}bg-primary{% endif %}">
+                                        {{ consumable.get_consumable_type_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'cartridges:cartridge_detail' consumable.pk %}">
+                                        {{ consumable.serial_number }}
+                                    </a>
+                                </td>
+                                <td>{{ consumable.model.name }}</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if consumable.condition == 'new' %}bg-success
+                                        {% elif consumable.condition == 'working' %}bg-primary
+                                        {% elif consumable.condition == 'refilled' %}bg-info
+                                        {% else %}bg-warning{% endif %}">
+                                        {{ consumable.get_condition_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">В этом принтере нет установленных расходников</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Статистика заправок - Учёт картриджей{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Статистика заправок</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{% url 'reports:reports_dashboard' %}" class="list-group-item list-group-item-action">
+                <i class="fas fa-tachometer-alt me-2"></i>Общая статистика
+            </a>
+            <a href="{% url 'reports:stock_report' %}" class="list-group-item list-group-item-action">
+                <i class="fas fa-warehouse me-2"></i>Остатки на складах
+            </a>
+            <a href="{% url 'reports:refill_report' %}" class="list-group-item list-group-item-action active">
+                <i class="fas fa-tools me-2"></i>Статистика заправок
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <!-- Статистика заправок за 30 дней -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Заправки за последние 30 дней</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_refills %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Модель картриджа</th>
+                                <th>Количество заправок</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for refill in recent_refills %}
+                            <tr>
+                                <td>{{ refill.cartridge__model__name }}</td>
+                                <td><span class="badge bg-info">{{ refill.count }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">Нет данных о заправках за последние 30 дней</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Топ картриджей по количеству заправок -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Топ картриджей по количеству заправок</h5>
+            </div>
+            <div class="card-body">
+                {% if top_refilled %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Серийный номер</th>
+                                <th>Модель</th>
+                                <th>Количество заправок</th>
+                                <th>Максимум</th>
+                                <th>Статус</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cartridge in top_refilled %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'cartridges:cartridge_detail' cartridge.pk %}">
+                                        {{ cartridge.serial_number }}
+                                    </a>
+                                </td>
+                                <td>{{ cartridge.model.name }}</td>
+                                <td>
+                                    <span class="badge {% if cartridge.refill_count >= cartridge.model.max_refills %}bg-warning{% else %}bg-primary{% endif %}">
+                                        {{ cartridge.refill_count }}
+                                    </span>
+                                </td>
+                                <td>{{ cartridge.model.max_refills }}</td>
+                                <td>
+                                    {% if cartridge.refill_count >= cartridge.model.max_refills %}
+                                    <span class="badge bg-danger">Превышен лимит</span>
+                                    {% else %}
+                                    <span class="badge bg-success">В норме</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">Нет данных о заправках</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

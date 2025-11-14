@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+
+{% block title %}Дашборд - Учёт расходников{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Дашборд</h1>
+</div>
+
+<!-- Общая статистика -->
+<div class="row mb-4">
+    <div class="col-md-2 mb-3">
+        <div class="card text-white bg-dark stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">{{ stats.total_consumables }}</h5>
+                        <p class="card-text">Всего расходников</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-boxes fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card text-white bg-primary stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">{{ stats.total_cartridges }}</h5>
+                        <p class="card-text">Картриджей</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-tint fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card text-white bg-info stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">{{ stats.total_drums }}</h5>
+                        <p class="card-text">Барабанов</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">{{ stats.cartridges_in_stock }}</h5>
+                        <p class="card-text">Картриджей на складе</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-warehouse fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card text-white bg-success stat-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">{{ stats.drums_in_stock }}</h5>
+                        <p class="card-text">Барабанов на складе</p>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-warehouse fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Последние операции -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Последние операции</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_operations %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Тип</th>
+                                <th>Расходник</th>
+                                <th>Тип</th>
+                                <th>Локация</th>
+                                <th>Пользователь</th>
+                                <th>Дата</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for operation in recent_operations %}
+                            <tr>
+                                <td>
+                                    <span class="badge 
+                                        {% if operation.operation_type == 'receipt' %}bg-success
+                                        {% elif operation.operation_type == 'install' %}bg-primary
+                                        {% elif operation.operation_type == 'issue_service' %}bg-warning
+                                        {% elif operation.operation_type == 'dispose' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ operation.get_operation_type_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'cartridges:cartridge_detail' operation.cartridge.pk %}">
+                                        {{ operation.cartridge.serial_number }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge {% if operation.cartridge.consumable_type == 'drum' %}bg-info{% else %}bg-primary{% endif %}">
+                                        {{ operation.cartridge.get_consumable_type_display }}
+                                    </span>
+                                </td>
+                                <td>{{ operation.to_location.name }}</td>
+                                <td>{{ operation.user.username }}</td>
+                                <td>{{ operation.timestamp|date:"d.m.Y H:i" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">Нет операций</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Требуют внимания -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Требуют внимания</h5>
+            </div>
+            <div class="card-body">
+                {% if attention_consumables %}
+                <div class="list-group list-group-flush">
+                    {% for consumable in attention_consumables %}
+                    <a href="{% url 'cartridges:cartridge_detail' consumable.pk %}" 
+                       class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ consumable.serial_number }}</h6>
+                            <small class="text-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </small>
+                        </div>
+                        <p class="mb-1 small">
+                            <span class="badge {% if consumable.consumable_type == 'drum' %}bg-info{% else %}bg-primary{% endif %} me-1">
+                                {{ consumable.get_consumable_type_display }}
+                            </span>
+                            {{ consumable.model }}
+                        </p>
+                        <small class="text-muted">
+                            {% if consumable.condition == 'needs_repair' %}
+                            Требует ремонта
+                            {% else %}
+                            Превышено заправок: {{ consumable.refill_count }}/{{ consumable.model.max_refills }}
+                            {% endif %}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">Нет расходников, требующих внимания</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

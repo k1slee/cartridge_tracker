@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+
+{% block title %}Добавление принтера{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Добавление принтера</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'cartridges:printer_list' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Основная информация</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Название -->
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Название *</label>
+                        {{ form.name }}
+                        {% for error in form.name.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Модель -->
+                    <div class="mb-3">
+                        <label for="{{ form.model.id_for_label }}" class="form-label">Модель *</label>
+                        {{ form.model }}
+                        {% for error in form.model.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Серийный номер -->
+                    <div class="mb-3">
+                        <label for="{{ form.serial_number.id_for_label }}" class="form-label">Серийный номер *</label>
+                        {{ form.serial_number }}
+                        {% for error in form.serial_number.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Тип принтера -->
+                    <div class="mb-3">
+                        <label for="{{ form.printer_type.id_for_label }}" class="form-label">Тип принтера *</label>
+                        {{ form.printer_type }}
+                        {% for error in form.printer_type.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- На чернилах -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {{ form.is_inkjet }}
+                            <label class="form-check-label" for="{{ form.is_inkjet.id_for_label }}">
+                                Принтер на чернилах
+                            </label>
+                        </div>
+                        <div class="form-text">Отметьте, если принтер использует жидкие чернила вместо картриджей с тонером</div>
+                        {% for error in form.is_inkjet.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Локация -->
+                    <div class="mb-3">
+                        <label for="{{ form.location.id_for_label }}" class="form-label">Локация *</label>
+                        {{ form.location }}
+                        {% for error in form.location.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Дата установки -->
+                    <div class="mb-3">
+                        <label for="{{ form.installation_date.id_for_label }}" class="form-label">Дата установки</label>
+                        {{ form.installation_date }}
+                        {% for error in form.installation_date.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Активен -->
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                Активен
+                            </label>
+                        </div>
+                        {% for error in form.is_active.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Примечания -->
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Примечания</label>
+                        {{ form.notes }}
+                        {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Подсказки</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Тип принтера</h6>
+                    <p class="small text-muted">
+                        <strong>Лазерный</strong> - использует картриджи с тонером<br>
+                        <strong>Струйный</strong> - использует жидкие чернила<br>
+                        <strong>МФУ</strong> - многофункциональное устройство
+                    </p>
+                    
+                    <h6>На чернилах</h6>
+                    <p class="small text-muted">
+                        Отметьте эту галочку для струйных принтеров, которые используют 
+                        систему непрерывной подачи чернил (СНПЧ) или картриджи с чернилами.
+                    </p>
+                    
+                    <h6>Активен</h6>
+                    <p class="small text-muted">
+                        Снимите галочку, если принтер выведен из эксплуатации или находится в ремонте.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Сохранить принтер
+        </button>
+        <a href="{% url 'cartridges:printer_list' %}" class="btn btn-secondary">Отмена</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const inputs = document.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        if (input.type !== 'checkbox' && !input.classList.contains('form-control')) {
+            input.classList.add('form-control');
+        }
+    });
+    
+    // Автоматически устанавливаем галочку "На чернилах" при выборе струйного принтера
+    const printerTypeSelect = document.getElementById('id_printer_type');
+    const isInkjetCheckbox = document.getElementById('id_is_inkjet');
+    
+    if (printerTypeSelect && isInkjetCheckbox) {
+        printerTypeSelect.addEventListener('change', function() {
+            if (this.value === 'inkjet') {
+                isInkjetCheckbox.checked = true;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Остатки на складах - Учёт картриджей{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Остатки на складах</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{% url 'reports:reports_dashboard' %}" class="list-group-item list-group-item-action">
+                <i class="fas fa-tachometer-alt me-2"></i>Общая статистика
+            </a>
+            <a href="{% url 'reports:stock_report' %}" class="list-group-item list-group-item-action active">
+                <i class="fas fa-warehouse me-2"></i>Остатки на складах
+            </a>
+            <a href="{% url 'reports:refill_report' %}" class="list-group-item list-group-item-action">
+                <i class="fas fa-tools me-2"></i>Статистика заправок
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        {% for location, models_stats in stock_by_location.items %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ location.name }} ({{ location.get_type_display }})</h5>
+            </div>
+            <div class="card-body">
+                {% if models_stats %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Модель картриджа</th>
+                                <th>Количество</th>
+                                <th>Производитель</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for model_stat in models_stats %}
+                            <tr>
+                                <td>{{ model_stat.name }}</td>
+                                <td><span class="badge bg-primary">{{ model_stat.count }}</span></td>
+                                <td>{{ model_stat.manufacturer }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">На этом складе нет картриджей</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
