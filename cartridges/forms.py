@@ -10,12 +10,16 @@ class CartridgeForm(forms.ModelForm):
         ]
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
-            'serial_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'consumable_type': forms.Select(attrs={'class': 'form-control'}),
-            'model': forms.Select(attrs={'class': 'form-control'}),
-            'current_location': forms.Select(attrs={'class': 'form-control'}),
-            'condition': forms.Select(attrs={'class': 'form-control'}),
+            'serial_number': forms.TextInput(attrs={'class': 'form-control', 'id': 'id_serial_number'}),
+            'consumable_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_consumable_type'}),
+            'model': forms.Select(attrs={'class': 'form-control', 'id': 'id_model'}),
+            'current_location': forms.Select(attrs={'class': 'form-control', 'id': 'id_current_location'}),
+            'condition': forms.Select(attrs={'class': 'form-control', 'id': 'id_condition'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['model'].queryset = CartridgeModel.objects.all().order_by('manufacturer', 'name')
 
 class OperationForm(forms.ModelForm):
     class Meta:
@@ -33,13 +37,10 @@ class OperationForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Фильтруем картриджи только с активными статусами
         self.fields['cartridge'].queryset = Cartridge.objects.exclude(current_status='disposed')
-        
-        # Изначально фильтруем принтеры по активным
         self.fields['printer'].queryset = Printer.objects.filter(is_active=True)
         
-        # Если есть начальные данные, фильтруем принтеры по локации
+        
         if 'to_location' in self.initial:
             location_id = self.initial['to_location']
             if location_id:
@@ -69,6 +70,6 @@ class PrinterForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Автоматически устанавливаем галочку "На чернилах" для струйных принтеров
+       
         if self.instance and self.instance.printer_type == 'inkjet':
             self.fields['is_inkjet'].initial = True

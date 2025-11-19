@@ -227,7 +227,7 @@ def get_locations_by_operation_type(request):
     operation_type = request.GET.get('operation_type')
     
     if operation_type == 'install':
-        # Для установки показываем только локации с принтерами
+       
         locations_with_printers = Location.objects.filter(
             printer__is_active=True
         ).distinct()
@@ -236,7 +236,7 @@ def get_locations_by_operation_type(request):
             for loc in locations_with_printers
         ]
     else:
-        # Для других операций показываем все активные локации
+        
         locations = Location.objects.filter(is_active=True)
         locations_data = [
             {'id': loc.id, 'name': loc.name}
@@ -244,3 +244,31 @@ def get_locations_by_operation_type(request):
         ]
     
     return JsonResponse({'locations': locations_data})
+
+
+@login_required
+def search_cartridge_models(request):
+    """API для поиска моделей картриджей"""
+    query = request.GET.get('q', '')
+    
+    if query:
+        models = CartridgeModel.objects.filter(
+            Q(name__icontains=query) | 
+            Q(manufacturer__icontains=query)
+            
+        ).order_by('manufacturer', 'name')[:20]  # Ограничиваем результаты
+    else:
+        models = CartridgeModel.objects.all().order_by('manufacturer', 'name')[:20]
+    
+    models_data = [
+        {
+            'id': model.id,
+            'name': f"{model.manufacturer} {model.name}",
+            'manufacturer': model.manufacturer,
+            'model_name': model.name,
+            'max_refills': model.max_refills
+        }
+        for model in models
+    ]
+    
+    return JsonResponse({'models': models_data})

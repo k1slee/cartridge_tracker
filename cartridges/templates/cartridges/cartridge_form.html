@@ -12,7 +12,7 @@
     </div>
 </div>
 
-<form method="post">
+<form method="post" id="cartridge-form">
     {% csrf_token %}
     <div class="row">
         <div class="col-md-8">
@@ -21,7 +21,7 @@
                     <h5 class="card-title mb-0">Основная информация</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Серийный номер -->
+                    
                     <div class="mb-3">
                         <label for="{{ form.serial_number.id_for_label }}" class="form-label">Серийный номер *</label>
                         {{ form.serial_number }}
@@ -33,7 +33,7 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Тип расходника - ДОБАВЛЯЕМ ЭТО ПОЛЕ -->
+                 
                     <div class="mb-3">
                         <label for="{{ form.consumable_type.id_for_label }}" class="form-label">Тип расходника *</label>
                         {{ form.consumable_type }}
@@ -45,9 +45,15 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Модель -->
+                    
                     <div class="mb-3">
-                        <label for="{{ form.model.id_for_label }}" class="form-label">Модель *</label>
+                        <label for="model_search" class="form-label">Поиск модели *</label>
+                        <input type="text" class="form-control" id="model_search" placeholder="Начните вводить название модели или производителя...">
+                        <div class="form-text">Введите название модели, производителя или код для поиска</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.model.id_for_label }}" class="form-label">Выберите модель *</label>
                         {{ form.model }}
                         {% if form.model.help_text %}
                         <div class="form-text">{{ form.model.help_text }}</div>
@@ -57,7 +63,7 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Текущая локация -->
+                  
                     <div class="mb-3">
                         <label for="{{ form.current_location.id_for_label }}" class="form-label">Текущая локация *</label>
                         {{ form.current_location }}
@@ -69,7 +75,7 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Состояние -->
+                    
                     <div class="mb-3">
                         <label for="{{ form.condition.id_for_label }}" class="form-label">Состояние</label>
                         {{ form.condition }}
@@ -81,7 +87,7 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Примечания -->
+                   
                     <div class="mb-3">
                         <label for="{{ form.notes.id_for_label }}" class="form-label">Примечания</label>
                         {{ form.notes }}
@@ -102,6 +108,12 @@
                     <h5 class="card-title mb-0">Подсказки</h5>
                 </div>
                 <div class="card-body">
+                    <h6>Поиск модели</h6>
+                    <p class="small text-muted">
+                        Используйте поле поиска для быстрого нахождения нужной модели. 
+                        Поиск работает по названию модели, производителю или коду.
+                    </p>
+                    
                     <h6>Тип расходника</h6>
                     <p class="small text-muted">
                         <span class="badge bg-primary">Картридж</span> - содержит тонер или чернила<br>
@@ -120,6 +132,18 @@
                     </p>
                 </div>
             </div>
+
+            
+            <div class="card mt-3 d-none" id="search-results-card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Результаты поиска</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div id="search-results" class="list-group list-group-flush">
+                        
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -134,11 +158,100 @@
 
 {% block scripts %}
 <script>
-
 document.addEventListener('DOMContentLoaded', function() {
+    const modelSearchInput = document.getElementById('model_search');
+    const modelSelect = document.getElementById('id_model');
+    const searchResultsCard = document.getElementById('search-results-card');
+    const searchResults = document.getElementById('search-results');
+    
+    let searchTimeout;
+
+ 
+    function performSearch(query) {
+        if (query.length < 2) {
+            searchResultsCard.classList.add('d-none');
+            return;
+        }
+
+        fetch(`/api/search-models/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                searchResults.innerHTML = '';
+                
+                if (data.models.length === 0) {
+                    searchResults.innerHTML = `
+                        <div class="list-group-item text-muted">
+                            <i class="fas fa-search me-2"></i>Модели не найдены
+                        </div>
+                    `;
+                } else {
+                    data.models.forEach(model => {
+                        const item = document.createElement('button');
+                        item.type = 'button';
+                        item.className = 'list-group-item list-group-item-action';
+                        item.innerHTML = `
+                            <div class="d-flex w-100 justify-content-between">
+                                <strong>${model.name}</strong>
+                                <small class="text-muted">${model.max_refills} заправок</small>
+                            </div>
+                            <small class="text-muted">Производитель: ${model.manufacturer}</small>
+                        `;
+                        item.addEventListener('click', function() {
+                            modelSelect.value = model.id;
+                            modelSearchInput.value = model.name;
+                            searchResultsCard.classList.add('d-none');
+                        });
+                        searchResults.appendChild(item);
+                    });
+                }
+                
+                searchResultsCard.classList.remove('d-none');
+            })
+            .catch(error => {
+                console.error('Error searching models:', error);
+            });
+    }
+
+    if (modelSearchInput) {
+        modelSearchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query) {
+                searchTimeout = setTimeout(() => performSearch(query), 300);
+            } else {
+                searchResultsCard.classList.add('d-none');
+            }
+        });
+
+       
+        document.addEventListener('click', function(event) {
+            if (!modelSearchInput.contains(event.target) && !searchResultsCard.contains(event.target)) {
+                searchResultsCard.classList.add('d-none');
+            }
+        });
+
+        modelSearchInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                searchResultsCard.classList.add('d-none');
+            }
+        });
+    }
+
+
+    if (modelSelect) {
+        modelSelect.addEventListener('change', function() {
+            const selectedOption = modelSelect.options[modelSelect.selectedIndex];
+            if (selectedOption.text !== '---------') {
+                modelSearchInput.value = selectedOption.text;
+            }
+        });
+    }
+
+
     const inputs = document.querySelectorAll('input, select, textarea');
     inputs.forEach(input => {
-        if (!input.classList.contains('form-control')) {
+        if (!input.classList.contains('form-control') && input.type !== 'checkbox') {
             input.classList.add('form-control');
         }
     });
