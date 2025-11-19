@@ -5,7 +5,7 @@ from django.db.models import Q, Count, F
 from django.http import JsonResponse
 from .models import Cartridge, Operation, CartridgeModel, Location, Printer
 from .forms import OperationForm, CartridgeForm, PrinterForm
-
+from django.http import JsonResponse
 @login_required
 def dashboard(request):
     """Главная панель управления с учётом типов расходников"""
@@ -203,3 +203,44 @@ def printer_create(request):
     
     context = {'form': form}
     return render(request, 'cartridges/printer_form.html', context)
+
+@login_required
+def get_printers_by_location(request):
+    """API для получения принтеров по локации"""
+    location_id = request.GET.get('location_id')
+    
+    if location_id:
+        printers = Printer.objects.filter(location_id=location_id, is_active=True)
+        printers_data = [
+            {'id': printer.id, 'name': f"{printer.name} ({printer.model})"}
+            for printer in printers
+        ]
+    else:
+        printers_data = []
+    
+    return JsonResponse({'printers': printers_data})
+
+
+@login_required
+def get_locations_by_operation_type(request):
+    """API для получения локаций по типу операции"""
+    operation_type = request.GET.get('operation_type')
+    
+    if operation_type == 'install':
+        # Для установки показываем только локации с принтерами
+        locations_with_printers = Location.objects.filter(
+            printer__is_active=True
+        ).distinct()
+        locations_data = [
+            {'id': loc.id, 'name': loc.name}
+            for loc in locations_with_printers
+        ]
+    else:
+        # Для других операций показываем все активные локации
+        locations = Location.objects.filter(is_active=True)
+        locations_data = [
+            {'id': loc.id, 'name': loc.name}
+            for loc in locations
+        ]
+    
+    return JsonResponse({'locations': locations_data})

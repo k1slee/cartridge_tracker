@@ -22,11 +22,11 @@ class OperationForm(forms.ModelForm):
         model = Operation
         fields = ['operation_type', 'cartridge', 'from_location', 'to_location', 'printer', 'reason', 'notes']
         widgets = {
-            'operation_type': forms.Select(attrs={'class': 'form-control'}),
+            'operation_type': forms.Select(attrs={'class': 'form-control', 'id': 'id_operation_type'}),
             'cartridge': forms.Select(attrs={'class': 'form-control'}),
-            'from_location': forms.Select(attrs={'class': 'form-control'}),
-            'to_location': forms.Select(attrs={'class': 'form-control'}),
-            'printer': forms.Select(attrs={'class': 'form-control'}),
+            'from_location': forms.Select(attrs={'class': 'form-control', 'id': 'id_from_location'}),
+            'to_location': forms.Select(attrs={'class': 'form-control', 'id': 'id_to_location'}),
+            'printer': forms.Select(attrs={'class': 'form-control', 'id': 'id_printer'}),
             'reason': forms.Textarea(attrs={'rows': 2, 'class': 'form-control'}),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
         }
@@ -35,6 +35,18 @@ class OperationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Фильтруем картриджи только с активными статусами
         self.fields['cartridge'].queryset = Cartridge.objects.exclude(current_status='disposed')
+        
+        # Изначально фильтруем принтеры по активным
+        self.fields['printer'].queryset = Printer.objects.filter(is_active=True)
+        
+        # Если есть начальные данные, фильтруем принтеры по локации
+        if 'to_location' in self.initial:
+            location_id = self.initial['to_location']
+            if location_id:
+                self.fields['printer'].queryset = Printer.objects.filter(
+                    location_id=location_id, 
+                    is_active=True
+                )
 
 class PrinterForm(forms.ModelForm):
     class Meta:

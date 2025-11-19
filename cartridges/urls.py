@@ -19,4 +19,7 @@ urlpatterns = [
     path('operations/add/', views.operation_create, name='operation_create'),
     path('operations/add/<int:cartridge_pk>/', views.operation_create, name='operation_create_for_cartridge'),
     path('api/cartridge/<int:cartridge_id>/', views.get_cartridge_info, name='cartridge_info'),
+
+    path('api/printers-by-location/', views.get_printers_by_location, name='printers_by_location'),
+    path('api/locations-by-operation/', views.get_locations_by_operation_type, name='locations_by_operation'),
 ]
