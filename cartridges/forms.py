@@ -73,3 +73,13 @@ class PrinterForm(forms.ModelForm):
        
         if self.instance and self.instance.printer_type == 'inkjet':
             self.fields['is_inkjet'].initial = True
+
+
+class CartridgeConditionForm(forms.ModelForm):
+    """Изменение статуса картриджа"""
+    class Meta:
+        model = Cartridge
+        fields = ['condition']
+        widgets = {
+            'condition' : forms.Select(attrs={'class': 'form-control form-control-sm'}),
+        }

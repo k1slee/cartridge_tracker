@@ -154,15 +154,69 @@
             </div>
             <div class="card-body">
                 {% if attention_consumables %}
-                <div class="list-group list-group-flush">
+                <div class="list-group list-group-flush" id="attention-list">
                     {% for consumable in attention_consumables %}
-                    <a href="{% url 'cartridges:cartridge_detail' consumable.pk %}" 
-                       class="list-group-item list-group-item-action">
+                    <div class="list-group-item">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">{{ consumable.serial_number }}</h6>
-                            <small class="{% if consumable.condition == 'needs_repair' %}text-danger{% else %}text-warning{% endif %}">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </small>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                        type="button" 
+                                        data-bs-toggle="dropdown" 
+                                        aria-expanded="false"
+                                        data-cartridge-id="{{ consumable.pk }}">
+                                    <span class="badge 
+                                        {% if consumable.condition == 'new' %}bg-success
+                                        {% elif consumable.condition == 'working' %}bg-primary
+                                        {% elif consumable.condition == 'refilled' %}bg-info
+                                        {% else %}bg-warning{% endif %}"
+                                        id="badge-{{ consumable.pk }}">
+                                        {{ consumable.get_condition_display }}
+                                    </span>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><h6 class="dropdown-header">Изменить состояние:</h6></li>
+                                    <li>
+                                        <a class="dropdown-item condition-change" 
+                                           href="#" 
+                                           data-condition="new"
+                                           data-cartridge-id="{{ consumable.pk }}">
+                                            <span class="badge bg-success me-2">Новый</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item condition-change" 
+                                           href="#" 
+                                           data-condition="working"
+                                           data-cartridge-id="{{ consumable.pk }}">
+                                            <span class="badge bg-primary me-2">Рабочий</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item condition-change" 
+                                           href="#" 
+                                           data-condition="refilled"
+                                           data-cartridge-id="{{ consumable.pk }}">
+                                            <span class="badge bg-info me-2">Заправлен</span>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item condition-change" 
+                                           href="#" 
+                                           data-condition="needs_repair"
+                                           data-cartridge-id="{{ consumable.pk }}">
+                                            <span class="badge bg-warning me-2">Требует ремонта</span>
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" 
+                                           href="{% url 'cartridges:cartridge_detail' consumable.pk %}">
+                                            <i class="fas fa-eye me-2"></i>Подробнее
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                         <p class="mb-1 small">
                             <span class="badge {% if consumable.consumable_type == 'drum' %}bg-info{% else %}bg-primary{% endif %} me-1">
@@ -170,16 +224,22 @@
                             </span>
                             {{ consumable.model }}
                         </p>
-                        <small class="text-muted">
-                            {% if consumable.condition == 'needs_repair' %}
-                            <span class="badge bg-danger">Требует ремонта</span>
-                            {% else %}
-                            <span class="badge bg-warning">
-                                Заправок: {{ consumable.refill_count }}/{{ consumable.model.max_refills }}
+                        <small class="text-muted d-flex justify-content-between">
+                            <span>
+                                {% if consumable.condition == 'needs_repair' %}
+                                <span class="badge bg-danger">Требует ремонта</span>
+                                {% else %}
+                                <span class="badge bg-warning">
+                                    Заправок: {{ consumable.refill_count }}/{{ consumable.model.max_refills }}
+                                </span>
+                                {% endif %}
                             </span>
-                            {% endif %}
+                            <a href="{% url 'cartridges:operation_create_for_cartridge' consumable.pk %}" 
+                               class="text-decoration-none">
+                                <i class="fas fa-exchange-alt" title="Создать операцию"></i>
+                            </a>
                         </small>
-                    </a>
+                    </div>
                     {% endfor %}
                 </div>
                 
@@ -202,4 +262,116 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчик изменения состояния
+    document.querySelectorAll('.condition-change').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const cartridgeId = this.getAttribute('data-cartridge-id');
+            const newCondition = this.getAttribute('data-condition');
+            const button = this.closest('.dropdown').querySelector('.dropdown-toggle');
+            const badge = document.getElementById(`badge-${cartridgeId}`);
+            
+            // Показываем индикатор загрузки
+            const originalBadge = badge.innerHTML;
+            badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // Отправляем AJAX запрос
+            fetch(`/cartridges/${cartridgeId}/update-condition/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `condition=${newCondition}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем бейдж
+                    badge.innerHTML = data.condition_display;
+                    badge.className = `badge ${data.badge_class}`;
+                    
+                    // Показываем уведомление
+                    showNotification('success', data.message);
+                    
+                    // Закрываем dropdown
+                    const dropdown = bootstrap.Dropdown.getInstance(button);
+                    if (dropdown) {
+                        dropdown.hide();
+                    }
+                } else {
+                    badge.innerHTML = originalBadge;
+                    showNotification('error', data.error || 'Ошибка при обновлении');
+                }
+            })
+            .catch(error => {
+                badge.innerHTML = originalBadge;
+                showNotification('error', 'Ошибка сети');
+                console.error('Error:', error);
+            });
+        });
+    });
+    
+    // Функция для получения CSRF токена
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Функция для показа уведомлений
+    function showNotification(type, message) {
+        // Создаем уведомление
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Автоматически скрываем через 3 секунды
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+});
+
+// Стили для анимации
+const style = document.createElement('style');
+style.textContent = `
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+.badge-updated {
+    animation: pulse 0.5s ease-in-out;
+}
+.alert {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}

@@ -282,3 +282,59 @@ def search_cartridge_models(request):
     ]
     
     return JsonResponse({'models': models_data})
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+
+@login_required
+@require_POST
+def update_cartridge_condition(request, pk):
+    """AJAX обновление состояния картриджа"""
+    try:
+        cartridge = get_object_or_404(Cartridge, pk=pk)
+        new_condition = request.POST.get('condition')
+        
+        if new_condition in dict(Cartridge.CONDITION_CHOICES).keys():
+            cartridge.condition = new_condition
+            cartridge.save()
+            
+            # Логируем операцию изменения состояния
+            Operation.objects.create(
+                operation_type='transfer',
+                cartridge=cartridge,
+                from_location=cartridge.current_location,
+                to_location=cartridge.current_location,
+                user=request.user,
+                reason=f'Изменено состояние на: {cartridge.get_condition_display()}',
+                notes=f'Изменено через дашборд пользователем {request.user.username}'
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Состояние изменено на: {cartridge.get_condition_display()}',
+                'condition': cartridge.condition,
+                'condition_display': cartridge.get_condition_display(),
+                'badge_class': get_condition_badge_class(cartridge.condition)
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Некорректное состояние'
+            }, status=400)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+def get_condition_badge_class(condition):
+    """Возвращает CSS класс для бейджа состояния"""
+    badge_classes = {
+        'new': 'bg-success',
+        'working': 'bg-primary',
+        'refilled': 'bg-info',
+        'needs_repair': 'bg-warning'
+    }
+    return badge_classes.get(condition, 'bg-secondary')

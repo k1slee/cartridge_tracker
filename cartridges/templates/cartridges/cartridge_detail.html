@@ -28,8 +28,12 @@
                         <td>{{ cartridge.serial_number }}</td>
                     </tr>
                     <tr>
-                        <th>Штрих-код:</th>
-                        <td>{{ cartridge.barcode|default:"не указан" }}</td>
+                        <th>Тип расходника:</th>
+                        <td>
+                            <span class="badge {% if cartridge.consumable_type == 'drum' %}bg-info{% else %}bg-primary{% endif %}">
+                                {{ cartridge.get_consumable_type_display }}
+                            </span>
+                        </td>
                     </tr>
                     <tr>
                         <th>Модель:</th>
@@ -58,7 +62,7 @@
                             {% if cartridge.installed_in_printer %}
                                 {{ cartridge.installed_in_printer }}
                             {% else %}
-                                нет
+                                <span class="text-muted">нет</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -68,35 +72,75 @@
                     </tr>
                     <tr>
                         <th>Количество заправок:</th>
-                        <td>{{ cartridge.refill_count }} / {{ cartridge.model.max_refills }}</td>
+                        <td>
+                            {{ cartridge.refill_count }} 
+                            {% if cartridge.model.max_refills %}
+                            / {{ cartridge.model.max_refills }}
+                            {% if cartridge.refill_count >= cartridge.model.max_refills %}
+                            <span class="badge bg-danger ms-1" title="Превышен лимит заправок">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
                     </tr>
                     <tr>
                         <th>Состояние:</th>
                         <td>
-                            <span class="badge 
-                                {% if cartridge.condition == 'new' %}bg-success
-                                {% elif cartridge.condition == 'working' %}bg-primary
-                                {% elif cartridge.condition == 'refilled' %}bg-info
-                                {% else %}bg-warning{% endif %}">
-                                {{ cartridge.get_condition_display }}
-                            </span>
+                            <div class="d-flex align-items-center">
+                                <span class="badge me-2
+                                    {% if cartridge.condition == 'new' %}bg-success
+                                    {% elif cartridge.condition == 'working' %}bg-primary
+                                    {% elif cartridge.condition == 'refilled' %}bg-info
+                                    {% else %}bg-warning{% endif %}"
+                                    id="condition-badge">
+                                    {{ cartridge.get_condition_display }}
+                                </span>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
+                                            type="button" 
+                                            data-bs-toggle="dropdown" 
+                                            aria-expanded="false">
+                                        Изменить
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><h6 class="dropdown-header">Выберите состояние:</h6></li>
+                                        <li>
+                                            <a class="dropdown-item condition-change" 
+                                               href="#" 
+                                               data-condition="new">
+                                                <span class="badge bg-success me-2">Новый</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item condition-change" 
+                                               href="#" 
+                                               data-condition="working">
+                                                <span class="badge bg-primary me-2">Рабочий</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item condition-change" 
+                                               href="#" 
+                                               data-condition="refilled">
+                                                <span class="badge bg-info me-2">Заправлен</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item condition-change" 
+                                               href="#" 
+                                               data-condition="needs_repair">
+                                                <span class="badge bg-warning me-2">Требует ремонта</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </td>
                     </tr>
                     <tr>
                         <th>Примечания:</th>
                         <td>{{ cartridge.notes|default:"нет" }}</td>
-                    </tr>
-                    <tr>
-                        <th widght="40%">Серийный номер:</th>
-                        <td>{{ cartridge.serial_number}}</td>
-                    </tr>
-                    <tr>
-                        <th>Тип расходника:</th>
-                        <td>
-                            <span class = "badge {% if cartridge.consumable_type == 'drum' %} bg-info{% else %} bg-primary {% endif %}">
-                                {{cartridge.get_consumable_type_display}}
-                            </span>
-                        </td>
                     </tr>
                 </table>
             </div>
@@ -104,7 +148,8 @@
     </div>
 
     <div class="col-md-6">
-        <div class="card">
+        <!-- История операций -->
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">История операций</h5>
             </div>
@@ -137,6 +182,170 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- Быстрые действия -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2"></i>Быстрые действия
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=install" 
+                           class="btn btn-outline-primary w-100 mb-2">
+                            <i class="fas fa-plug me-1"></i>Установить
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=remove" 
+                           class="btn btn-outline-secondary w-100 mb-2">
+                            <i class="fas fa-eject me-1"></i>Снять
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=issue_service" 
+                           class="btn btn-outline-warning w-100 mb-2">
+                            <i class="fas fa-tools me-1"></i>На заправку
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=receive_service" 
+                           class="btn btn-outline-success w-100 mb-2">
+                            <i class="fas fa-check me-1"></i>С заправки
+                        </a>
+                    </div>
+                    <div class="col-md-12">
+                        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=dispose" 
+                           class="btn btn-outline-danger w-100">
+                            <i class="fas fa-trash me-1"></i>Списать
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Обработчик изменения состояния
+    document.querySelectorAll('.condition-change').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const newCondition = this.getAttribute('data-condition');
+            const badge = document.getElementById('condition-badge');
+            
+            // Показываем индикатор загрузки
+            const originalText = badge.innerHTML;
+            badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // Отправляем AJAX запрос
+            fetch(`/cartridges/{{ cartridge.pk }}/update-condition/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `condition=${newCondition}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Обновляем бейдж
+                    badge.innerHTML = data.condition_display;
+                    
+                    // Обновляем класс бейджа
+                    const badgeClasses = {
+                        'new': 'bg-success',
+                        'working': 'bg-primary',
+                        'refilled': 'bg-info',
+                        'needs_repair': 'bg-warning'
+                    };
+                    badge.className = `badge me-2 ${badgeClasses[data.condition] || 'bg-secondary'}`;
+                    
+                    // Показываем уведомление
+                    showNotification('success', data.message);
+                    
+                    // Анимируем изменение
+                    badge.classList.add('badge-updated');
+                    setTimeout(() => {
+                        badge.classList.remove('badge-updated');
+                    }, 1000);
+                    
+                    // Закрываем dropdown
+                    const dropdown = bootstrap.Dropdown.getInstance(this.closest('.dropdown').querySelector('.dropdown-toggle'));
+                    if (dropdown) {
+                        dropdown.hide();
+                    }
+                } else {
+                    badge.innerHTML = originalText;
+                    showNotification('error', data.error || 'Ошибка при обновлении');
+                }
+            })
+            .catch(error => {
+                badge.innerHTML = originalText;
+                showNotification('error', 'Ошибка сети');
+                console.error('Error:', error);
+            });
+        });
+    });
+    
+    // Функция для получения CSRF токена
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Функция для показа уведомлений
+    function showNotification(type, message) {
+        // Создаем уведомление
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Автоматически скрываем через 3 секунды
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
+    }
+});
+
+// Анимация для изменения состояния
+const style = document.createElement('style');
+style.textContent = `
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+.badge-updated {
+    animation: pulse 0.5s ease-in-out;
+}
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}
