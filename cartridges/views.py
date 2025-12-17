@@ -25,18 +25,33 @@ def dashboard(request):
     # Последние операции
     recent_operations = Operation.objects.select_related('cartridge', 'user')[:10]
     
-    # Картриджи и барабаны, требующие внимания - УБИРАЕМ ОГРАНИЧЕНИЕ [:5] или [:8]
+    # Картриджи и барабаны, требующие внимания
     attention_consumables = Cartridge.objects.filter(
         Q(condition='needs_repair') | 
         Q(refill_count__gte=F('model__max_refills'))
-    ).order_by('-condition', '-refill_count')  # Сортируем по важности
+    ).order_by('-condition', '-refill_count')
+    
+    # Дополнительная статистика для кнопки
+    needs_repair_count = Cartridge.objects.filter(
+        condition='needs_repair',
+        current_status__in=['in_stock', 'installed']
+    ).count()
+    
+    max_refills_count = Cartridge.objects.filter(
+        refill_count__gte=F('model__max_refills'),
+        condition='needs_repair'
+    ).count()
     
     context = {
         'stats': stats,
         'recent_operations': recent_operations,
         'attention_consumables': attention_consumables,
+        'needs_repair_count': needs_repair_count,
+        'max_refills_count': max_refills_count,
     }
     return render(request, 'cartridges/dashboard.html', context)
+
+
 @login_required
 def cartridge_list(request):
     """Список всех расходников с фильтрацией по типу"""
@@ -338,3 +353,129 @@ def get_condition_badge_class(condition):
         'needs_repair': 'bg-warning'
     }
     return badge_classes.get(condition, 'bg-secondary')
+
+
+
+from django.views.decorators.http import require_POST
+
+@login_required
+@require_POST
+def bulk_send_to_service(request):
+    """Массовая отправка картриджей на заправку"""
+    try:
+        # Находим все картриджи, требующие ремонта
+        cartridges_to_service = Cartridge.objects.filter(
+            condition='needs_repair',
+            current_status__in=['in_stock', 'installed']  # Только те, что на складе или установлены
+        )
+        
+        count = 0
+        errors = []
+        
+        # Находим локацию сервисного центра
+        service_center = Location.objects.filter(type='service', is_active=True).first()
+        if not service_center:
+            return JsonResponse({
+                'success': False,
+                'error': 'Не найден активный сервисный центр'
+            })
+        
+        for cartridge in cartridges_to_service:
+            try:
+                # Сохраняем текущую локацию
+                from_location = cartridge.current_location
+                
+                # Обновляем статус картриджа
+                cartridge.current_status = 'at_service'
+                cartridge.current_location = service_center
+                cartridge.save()
+                
+                # Создаём операцию
+                Operation.objects.create(
+                    operation_type='issue_service',
+                    cartridge=cartridge,
+                    from_location=from_location,
+                    to_location=service_center,
+                    user=request.user,
+                    reason='Массовая отправка на заправку',
+                    notes='Картридж требует ремонта, отправлен автоматически'
+                )
+                
+                count += 1
+                
+            except Exception as e:
+                errors.append(f"{cartridge.serial_number}: {str(e)}")
+                continue
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Успешно отправлено {count} картриджей на заправку',
+            'count': count,
+            'errors': errors if errors else None
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+@require_POST
+def send_to_service(request, pk):
+    """Отправка одного картриджа на заправку"""
+    try:
+        cartridge = get_object_or_404(Cartridge, pk=pk)
+        
+        # Проверяем, можно ли отправить на заправку
+        if cartridge.current_status == 'disposed':
+            return JsonResponse({
+                'success': False,
+                'error': 'Нельзя отправить списанный картридж'
+            })
+        
+        if cartridge.current_status == 'at_service':
+            return JsonResponse({
+                'success': False,
+                'error': 'Картридж уже на заправке'
+            })
+        
+        # Находим локацию сервисного центра
+        service_center = Location.objects.filter(type='service', is_active=True).first()
+        if not service_center:
+            return JsonResponse({
+                'success': False,
+                'error': 'Не найден активный сервисный центр'
+            })
+        
+        # Сохраняем текущую локацию
+        from_location = cartridge.current_location
+        
+        # Обновляем статус картриджа
+        cartridge.current_status = 'at_service'
+        cartridge.current_location = service_center
+        cartridge.save()
+        
+        # Создаём операцию
+        Operation.objects.create(
+            operation_type='issue_service',
+            cartridge=cartridge,
+            from_location=from_location,
+            to_location=service_center,
+            user=request.user,
+            reason='Отправка на заправку',
+            notes=f'Картридж отправлен на ремонт/заправку. Состояние: {cartridge.get_condition_display()}'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Картридж {cartridge.serial_number} отправлен на заправку',
+            'status': cartridge.current_status,
+            'status_display': cartridge.get_current_status_display()
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
