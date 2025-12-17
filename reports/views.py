@@ -75,7 +75,6 @@ def refill_report(request):
     
     # Топ картриджей по количеству заправок
     top_refilled = Cartridge.objects.filter(refill_count__gt=0).order_by('-refill_count')[:10]
-    
     context = {
         'recent_refills': recent_refills,
         'top_refilled': top_refilled,

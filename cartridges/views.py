@@ -9,7 +9,7 @@ from django.http import JsonResponse
 @login_required
 def dashboard(request):
     """Главная панель управления с учётом типов расходников"""
-   
+    # Обновлённая статистика
     stats = {
         'total_consumables': Cartridge.objects.count(),
         'total_cartridges': Cartridge.objects.filter(consumable_type='cartridge').count(),
@@ -22,14 +22,14 @@ def dashboard(request):
         'needs_repair': Cartridge.objects.filter(condition='needs_repair').count(),
     }
     
-   
+    # Последние операции
     recent_operations = Operation.objects.select_related('cartridge', 'user')[:10]
     
-    
+    # Картриджи и барабаны, требующие внимания - УБИРАЕМ ОГРАНИЧЕНИЕ [:5] или [:8]
     attention_consumables = Cartridge.objects.filter(
         Q(condition='needs_repair') | 
         Q(refill_count__gte=F('model__max_refills'))
-    )[:8]
+    ).order_by('-condition', '-refill_count')  # Сортируем по важности
     
     context = {
         'stats': stats,
@@ -37,17 +37,18 @@ def dashboard(request):
         'attention_consumables': attention_consumables,
     }
     return render(request, 'cartridges/dashboard.html', context)
-
 @login_required
 def cartridge_list(request):
     """Список всех расходников с фильтрацией по типу"""
     consumables = Cartridge.objects.select_related('model', 'current_location', 'installed_in_printer')
     
-  
+    # Применяем фильтры
     consumable_type = request.GET.get('consumable_type')
     status = request.GET.get('status')
     model_id = request.GET.get('model')
     location_id = request.GET.get('location')
+    condition = request.GET.get('condition')
+    needs_attention = request.GET.get('needs_attention')
     
     if consumable_type:
         consumables = consumables.filter(consumable_type=consumable_type)
@@ -57,6 +58,14 @@ def cartridge_list(request):
         consumables = consumables.filter(model_id=model_id)
     if location_id:
         consumables = consumables.filter(current_location_id=location_id)
+    if condition:
+        consumables = consumables.filter(condition=condition)
+    if needs_attention:
+        # Фильтр для "требуют внимания"
+        consumables = consumables.filter(
+            Q(condition='needs_repair') | 
+            Q(refill_count__gte=F('model__max_refills'))
+        )
     
     context = {
         'consumables': consumables,
@@ -64,6 +73,7 @@ def cartridge_list(request):
         'locations': Location.objects.filter(is_active=True),
         'consumable_type_choices': Cartridge.CONSUMABLE_TYPES,
         'status_choices': Cartridge.STATUS_CHOICES,
+        'condition_choices': Cartridge.CONDITION_CHOICES,
     }
     return render(request, 'cartridges/cartridge_list.html', context)
 
