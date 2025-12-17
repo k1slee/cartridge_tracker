@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Отчёт по картриджам, требующим внимания</title>
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
+            body {
+                font-family: 'Times New Roman', serif;
+                font-size: 12pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+            .table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-bottom: 15px;
+            }
+            .table th, .table td {
+                border: 1px solid #000;
+                padding: 5px 8px;
+                text-align: left;
+                vertical-align: top;
+            }
+            .table th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+            }
+            .section-title {
+                background-color: #eee;
+                padding: 8px;
+                margin: 15px 0 10px 0;
+                font-weight: bold;
+                border-left: 4px solid #333;
+            }
+            .badge {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 3px;
+                font-size: 11pt;
+                margin: 2px;
+            }
+            .badge-danger { background-color: #f8d7da; color: #721c24; }
+            .badge-warning { background-color: #fff3cd; color: #856404; }
+            .footer {
+                margin-top: 30px;
+                padding-top: 10px;
+                border-top: 1px dashed #000;
+                font-size: 10pt;
+                text-align: right;
+            }
+        }
+        
+        /* Стили для предпросмотра на экране */
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .print-controls {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .btn {
+            padding: 8px 15px;
+            margin: 0 5px;
+            border: 1px solid #007bff;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <!-- Панель управления печатью (только на экране) -->
+    <div class="print-controls no-print">
+        <button onclick="window.print()" class="btn">
+            <i class="fas fa-print"></i> Печать
+        </button>
+        <button onclick="window.close()" class="btn" style="background: #6c757d;">
+            <i class="fas fa-times"></i> Закрыть
+        </button>
+        <span style="margin-left: 20px; color: #666;">
+            Отчёт сформирован: {{ report_date }}
+        </span>
+    </div>
+
+    <!-- Заголовок отчёта -->
+    <div class="header">
+        <h1>Отчёт по картриджам, требующим внимания</h1>
+        <p>Дата формирования: <strong>{{ report_date }}</strong></p>
+        <p>Общее количество: <strong>{{ total_count }} шт.</strong></p>
+    </div>
+
+    <!-- Раздел 1: Требуют ремонта -->
+    <div class="section-title">
+        <span class="badge badge-danger">ТРЕБУЮТ РЕМОНТА</span>
+        Количество: {{ needs_repair.count }} шт.
+    </div>
+    
+   {% if needs_repair %}
+<table class="table">
+    <thead>
+        <tr>
+            <th width="120">Инв. номер</th>
+            <th width="180">Модель</th>
+            <th>Тип</th>
+            <th width="100">Заправок</th>
+            <th>Комментарий</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cartridge in needs_repair %}
+        <tr>
+            <td><strong>{{ cartridge.serial_number }}</strong></td>
+            <td>{{ cartridge.model.name }}</td>
+            <td>{{ cartridge.get_consumable_type_display }}</td>
+            <td>{{ cartridge.refill_count }} / {{ cartridge.model.max_refills|default:"∞" }}</td>
+            <td>
+                {% if cartridge.comment %}
+                    {{ cartridge.comment|truncatechars:50 }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="text-align: center; color: #28a745; padding: 15px;">
+    <i class="fas fa-check-circle"></i> Нет картриджей, требующих ремонта
+</p>
+{% endif %}
+    {% if max_refills %}
+<table class="table">
+    <thead>
+        <tr>
+            <th width="120">Инв. номер</th>
+            <th width="180">Модель</th>
+            <th>Тип</th>
+            <th width="100">Заправок</th>
+            <th>Рекомендация</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for cartridge in max_refills %}
+        <tr>
+            <td><strong>{{ cartridge.serial_number }}</strong></td>
+            <td>{{ cartridge.model.name }}</td>
+            <td>{{ cartridge.get_consumable_type_display }}</td>
+            <td style="color: #dc3545;">
+                <strong>{{ cartridge.refill_count }}</strong> / {{ cartridge.model.max_refills }}
+            </td>
+            <td>
+                <span class="badge badge-warning">ЗАМЕНИТЬ НА НОВЫЙ</span>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="text-align: center; color: #28a745; padding: 15px;">
+    <i class="fas fa-check-circle"></i> Нет картриджей с превышением лимита заправок
+</p>
+{% endif %}

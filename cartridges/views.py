@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from .models import Cartridge, Operation, CartridgeModel, Location, Printer
 from .forms import OperationForm, CartridgeForm, PrinterForm
 from django.http import JsonResponse
+from django.utils import timezone
 @login_required
 def dashboard(request):
     """Главная панель управления с учётом типов расходников"""
@@ -479,3 +480,31 @@ def send_to_service(request, pk):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+from django.shortcuts import render
+from .models import Cartridge
+
+def print_attention_report(request):
+    """
+    Печать отчёта по картриджам, требующим внимания
+    (нуждаются в ремонте или превысили лимит заправок)
+    """
+    # Получаем те же картриджи, что и для дашборда
+    attention_consumables = Cartridge.objects.filter(
+        Q(condition='needs_repair') | 
+        Q(refill_count__gt=F('model__max_refills'))
+    ).select_related('model', 'installed_in_printer', 'current_location')  # Изменено здесь
+    
+    # Разделяем на две категории для отчёта
+    needs_repair = attention_consumables.filter(condition='needs_repair')
+    max_refills = attention_consumables.filter(refill_count__gt=F('model__max_refills'))
+    
+    context = {
+        'needs_repair': needs_repair,
+        'max_refills': max_refills,
+        'total_count': attention_consumables.count(),
+        'report_date': timezone.now().strftime('%d.%m.%Y %H:%M'),
+    }
+    
+    return render(request, 'reports/attention_report.html', context)

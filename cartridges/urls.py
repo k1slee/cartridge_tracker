@@ -22,4 +22,5 @@ urlpatterns = [
     path('cartridges/<int:pk>/update-condition/', views.update_cartridge_condition, name='update_cartridge_condition'),
     path('cartridges/bulk-send-to-service/', views.bulk_send_to_service, name='bulk_send_to_service'),
     path('cartridges/<int:pk>/send-to-service/', views.send_to_service, name='send_to_service'),
+    path('report/attention/', views.print_attention_report, name='print_attention_report'),
 ]

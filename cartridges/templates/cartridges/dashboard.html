@@ -160,6 +160,14 @@
                     <i class="fas fa-tools"></i>
                 </button>
                 <span class="badge bg-danger ms-2">{{ attention_consumables.count }}</span>
+                <a href="{% url 'cartridges:print_attention_report' %}" 
+                    class="btn btn-sm btn-outline-primary"
+                    title="Распечатать отчёт"
+                    target="_blank">
+                        <i class="fas fa-print"></i>
+                </a>
+                 <span class="badge bg-danger ms-2">{{ attention_consumables.count }}</span>
+              
             </div>
         </div>
         <div class="card-body">
