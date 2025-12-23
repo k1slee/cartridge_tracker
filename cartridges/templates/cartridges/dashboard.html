@@ -3,6 +3,7 @@
 {% block title %}Дашборд - Учёт расходников{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Дашборд</h1>
 </div>
@@ -158,6 +159,11 @@
                         id="bulk-service-btn"
                         title="Отправить все картриджи, требующие ремонта, на заправку">
                     <i class="fas fa-tools"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-success" 
+                        id="bulk-return-btn"
+                        title="Вернуть все картриджи с заправки на склад">
+                    <i class="fas fa-warehouse"></i>
                 </button>
                 <span class="badge bg-danger ms-2">{{ attention_consumables.count }}</span>
                 <a href="{% url 'cartridges:print_attention_report' %}" 
@@ -520,5 +526,103 @@ style.textContent = `
 }
 `;
 document.head.appendChild(style);
+
+// Массовый возврат с заправки на склад - ФИНАЛЬНАЯ ИСПРАВЛЕННАЯ ВЕРСИЯ
+const bulkReturnBtn = document.getElementById('bulk-return-btn');
+if (bulkReturnBtn) {
+    bulkReturnBtn.addEventListener('click', async function() {
+        console.log('=== НАЧАЛО ОБРАБОТКИ КНОПКИ ВОЗВРАТА ===');
+        
+        // 1. ВАЖНО: Используем токен ИЗ КУКИ, а не из поля формы
+        const csrfToken = getCookie('csrftoken');
+        
+        console.log('CSRF из куки:', csrfToken?.substring(0, 10) + '...');
+        console.log('CSRF из поля:', document.querySelector('[name=csrfmiddlewaretoken]')?.value?.substring(0, 10) + '...');
+        
+        if (!csrfToken) {
+            alert('❌ Ошибка: CSRF токен не найден в куки. Перезагрузите страницу.');
+            return;
+        }
+        
+        // 2. Подтверждение действия
+        if (!confirm('Вернуть ВСЕ картриджи со статусом "На заправке" обратно на склад?\n\nСтатус: "На складе"\nСостояние: "Заправлен"')) {
+            return;
+        }
+        
+        // 3. Показываем индикатор загрузки
+        const button = this;
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        button.disabled = true;
+        
+        try {
+            console.log('Отправка запроса на сервер...');
+            
+            // 4. Отправляем запрос с правильным CSRF
+            const response = await fetch('/cartridges/bulk-return-from-service/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,  // ← Токен из куки!
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({
+                    action: 'return_from_service',
+                    timestamp: new Date().toISOString()
+                })
+            });
+            
+            console.log('Статус ответа:', response.status, response.statusText);
+            
+            // 5. Проверяем ответ
+            if (response.status === 403) {
+                throw new Error('Ошибка доступа (403). CSRF токен не совпадает.');
+            }
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ошибка: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Ответ сервера:', data);
+            
+            // 6. Обрабатываем результат
+            if (data.success) {
+                alert(`✅ ${data.message}\n\nВозвращено: ${data.count} картриджей`);
+                
+                // Обновляем страницу через 2 секунды
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            } else {
+                throw new Error(data.error || data.message || 'Неизвестная ошибка сервера');
+            }
+            
+        } catch (error) {
+            console.error('Ошибка при выполнении запроса:', error);
+            alert('❌ Ошибка: ' + error.message);
+            
+            // Восстанавливаем кнопку
+            button.innerHTML = originalHtml;
+            button.disabled = false;
+        }
+    });
+}
+
+// Функция получения куки (уже есть, но убедитесь что она работает)
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 </script>
 {% endblock %}

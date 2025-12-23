@@ -23,4 +23,5 @@ urlpatterns = [
     path('cartridges/bulk-send-to-service/', views.bulk_send_to_service, name='bulk_send_to_service'),
     path('cartridges/<int:pk>/send-to-service/', views.send_to_service, name='send_to_service'),
     path('report/attention/', views.print_attention_report, name='print_attention_report'),
+    path('cartridges/bulk-return-from-service/', views.bulk_return_from_service, name='bulk_return_from_service'),
 ]

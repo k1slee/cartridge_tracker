@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Count, F
+from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from .models import Cartridge, Operation, CartridgeModel, Location, Printer
 from .forms import OperationForm, CartridgeForm, PrinterForm
@@ -508,3 +509,108 @@ def print_attention_report(request):
     }
     
     return render(request, 'reports/attention_report.html', context)
+
+@csrf_exempt
+@login_required
+@require_POST
+def bulk_return_from_service(request):
+    """Массовое возвращение картриджей с заправки на склад"""
+    try:
+        print("=" * 50)
+        print("ФУНКЦИЯ bulk_return_from_service ВЫЗВАНА")
+        
+        # 1. Находим все картриджи на заправке
+        cartridges_at_service = Cartridge.objects.filter(
+            current_status='at_service'
+        )
+        
+        print(f"Найдено картриджей на заправке: {cartridges_at_service.count()}")
+        
+        if cartridges_at_service.count() == 0:
+            return JsonResponse({
+                'success': True,
+                'message': 'Нет картриджей на заправке',
+                'count': 0
+            })
+        
+        # 2. Находим складскую локацию
+        warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
+        if not warehouse:
+            # Если нет склада, ищем любую активную локацию
+            warehouse = Location.objects.filter(is_active=True).first()
+        
+        print(f"Локация склада: {warehouse}")
+        
+        if not warehouse:
+            return JsonResponse({
+                'success': False,
+                'error': 'Не найдена активная локация для склада'
+            })
+        
+        # 3. Обрабатываем каждый картридж
+        count = 0
+        errors = []
+        
+        for cartridge in cartridges_at_service:
+            try:
+                print(f"Обработка картриджа: {cartridge.serial_number}")
+                
+                # Сохраняем старую локацию
+                from_location = cartridge.current_location
+                
+                # Обновляем статус и состояние
+                cartridge.current_status = 'in_stock'  # На склад
+                cartridge.current_location = warehouse
+                cartridge.condition = 'refilled'  # Ставим состояние "Заправлен"
+                cartridge.save()
+                
+                print(f"  - Обновлен: статус={cartridge.current_status}, состояние={cartridge.condition}")
+                
+                # 4. Создаем операцию
+                # Проверяем, есть ли тип 'return_service' или используем 'receive_service'
+                operation_type = 'receive_service'  # Используем существующий тип
+                
+                Operation.objects.create(
+                    operation_type=operation_type,
+                    cartridge=cartridge,
+                    from_location=from_location,
+                    to_location=warehouse,
+                    user=request.user,
+                    reason='Возврат с заправки',
+                    notes='Картридж возвращен со сервисного центра на склад'
+                )
+                
+                print(f"  - Операция создана")
+                count += 1
+                
+            except Exception as e:
+                error_msg = f"{cartridge.serial_number}: {str(e)}"
+                print(f"  - Ошибка: {error_msg}")
+                errors.append(error_msg)
+                continue
+        
+        print(f"УСПЕШНО ОБРАБОТАНО: {count} картриджей")
+        print("=" * 50)
+        
+        # 5. Возвращаем результат
+        result = {
+            'success': True,
+            'message': f'Успешно возвращено на склад: {count} картриджей',
+            'count': count
+        }
+        
+        if errors:
+            result['errors'] = errors
+            result['message'] = f'Возвращено {count} картриджей. Было {len(errors)} ошибок'
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        print(f"КРИТИЧЕСКАЯ ОШИБКА: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
