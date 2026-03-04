@@ -5,9 +5,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'ваш-секретный-ключ'
 
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhoct',
+    '127.0.0.1',
+    '192.168.0.49'
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
