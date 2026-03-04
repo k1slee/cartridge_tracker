@@ -7,7 +7,11 @@ SECRET_KEY = 'django-insecure-your-secret-key-here'
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS')
+if _hosts:
+    ALLOWED_HOSTS = [h.strip() for h in _hosts.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = ['*'] if DEBUG else []
 
 INSTALLED_APPS = [
     'django.contrib.admin',
