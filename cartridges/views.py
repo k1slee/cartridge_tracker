@@ -168,12 +168,33 @@ def operation_create(request, cartridge_pk=None):
         if form.is_valid():
             operation = form.save(commit=False)
             operation.user = request.user
+            # Автозаполнение "Откуда" для установки из "БПО склад"
+            if operation.operation_type == 'install' and not operation.from_location:
+                warehouse = (Location.objects
+                             .filter(name__iexact='БПО склад', is_active=True)
+                             .first())
+                if not warehouse:
+                    warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
+                if warehouse:
+                    operation.from_location = warehouse
             operation.save()
             
             messages.success(request, f'Операция "{operation.get_operation_type_display()}" успешно создана')
             return redirect('cartridges:cartridge_detail', pk=operation.cartridge.pk)  
     else:
         initial = {'cartridge': cartridge} if cartridge else {}
+        op_type = request.GET.get('operation_type')
+        if op_type:
+            initial['operation_type'] = op_type
+        # Для установки предлагаем "БПО склад" как откуда
+        if op_type == 'install':
+            warehouse = (Location.objects
+                         .filter(name__iexact='БПО склад', is_active=True)
+                         .first())
+            if not warehouse:
+                warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
+            if warehouse:
+                initial['from_location'] = warehouse.id
         form = OperationForm(initial=initial)
     
     context = {
@@ -524,8 +545,9 @@ def remove_from_printer(request, pk):
             }, status=400)
         
         # Ищем склад БПО по имени, иначе любой активный склад
+        from django.db.models import Q
         warehouse = (Location.objects
-                     .filter(name__iexact='на складе БПО', is_active=True)
+                     .filter(Q(name__iexact='на складе БПО') | Q(name__iexact='БПО склад'), is_active=True)
                      .first())
         if not warehouse:
             warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
