@@ -25,7 +25,9 @@ def dashboard(request):
     }
     
     # Последние операции
-    recent_operations = Operation.objects.select_related('cartridge', 'user')[:10]
+    recent_operations = (Operation.objects
+                         .select_related('cartridge', 'user', 'to_location')
+                         .order_by('-timestamp')[:50])
     
     # Картриджи и барабаны, требующие внимания
     attention_consumables = Cartridge.objects.filter(
