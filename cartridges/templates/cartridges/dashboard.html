@@ -326,6 +326,38 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+if (typeof window.getCookie !== 'function') {
+    window.getCookie = function(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+}
+if (typeof window.showNotification !== 'function') {
+    window.showNotification = function(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 340px;';
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => { if (alertDiv.parentNode) alertDiv.remove(); }, 3500);
+    }
+}
+</script>
 
 <script>// Массовая отправка на заправку
 document.getElementById('bulk-service-btn').addEventListener('click', function() {
@@ -349,12 +381,11 @@ document.getElementById('bulk-service-btn').addEventListener('click', function()
     .then(data => {
         if (data.success) {
             showNotification('success', data.message);
-            
-            // Обновляем статистику
-            if (data.count > 0) {
-                setTimeout(() => {
-                    location.reload(); // Перезагружаем страницу для обновления данных
-                }, 2000);
+            if (data.count && data.count > 0) {
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                button.innerHTML = originalHtml;
+                button.disabled = false;
             }
         } else {
             showNotification('error', data.error || 'Ошибка при отправке на заправку');

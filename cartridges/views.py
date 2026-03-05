@@ -380,16 +380,16 @@ from django.views.decorators.http import require_POST
 def bulk_send_to_service(request):
     """Массовая отправка картриджей на заправку"""
     try:
-        # Находим все картриджи, требующие ремонта
-        cartridges_to_service = Cartridge.objects.filter(
-            condition='needs_repair',
-            current_status__in=['in_stock', 'installed']  # Только те, что на складе или установлены
-        )
+        candidates = Cartridge.objects.filter(
+            Q(condition='needs_repair') | Q(refill_count__gte=F('model__max_refills'))
+        ).exclude(current_status__in=['at_service', 'disposed'])
+        # Берём все, кто требует внимания, кроме уже на заправке и списанных
+        cartridges_to_service = candidates
         
         count = 0
         errors = []
+        skipped = []
         
-        # Находим локацию сервисного центра
         service_center = Location.objects.filter(type='service', is_active=True).first()
         if not service_center:
             return JsonResponse({
@@ -399,15 +399,12 @@ def bulk_send_to_service(request):
         
         for cartridge in cartridges_to_service:
             try:
-                # Сохраняем текущую локацию
                 from_location = cartridge.current_location
                 
-                # Обновляем статус картриджа
-                cartridge.current_status = 'at_service'
-                cartridge.current_location = service_center
-                cartridge.save()
+                if cartridge.current_status in ['at_service', 'disposed']:
+                    skipped.append(f"{cartridge.serial_number}: статус {cartridge.get_current_status_display()}")
+                    continue
                 
-                # Создаём операцию
                 Operation.objects.create(
                     operation_type='issue_service',
                     cartridge=cartridge,
@@ -424,11 +421,26 @@ def bulk_send_to_service(request):
                 errors.append(f"{cartridge.serial_number}: {str(e)}")
                 continue
         
+        # Формируем человеку понятное сообщение
+        skipped_count = len(skipped)
+        error_count = len(errors)
+        if count == 0 and skipped_count == 0 and error_count == 0:
+            message = 'Нет подходящих картриджей для отправки на заправку'
+        else:
+            parts = [f'Отправлено: {count}']
+            if skipped_count:
+                parts.append(f'пропущено: {skipped_count}')
+            if error_count:
+                parts.append(f'ошибок: {error_count}')
+            message = ' ; '.join(parts)
+        
         return JsonResponse({
             'success': True,
-            'message': f'Успешно отправлено {count} картриджей на заправку',
+            'message': message,
             'count': count,
-            'errors': errors if errors else None
+            'skipped_count': skipped_count,
+            'errors': errors if errors else None,
+            'skipped': skipped if skipped else None
         })
         
     except Exception as e:
