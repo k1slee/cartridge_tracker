@@ -183,6 +183,8 @@ class Operation(models.Model):
                 cartridge.installed_in_printer = self.printer
             elif operation_type == 'remove':
                 cartridge.installed_in_printer = None
+            elif operation_type == 'issue_service':
+                cartridge.installed_in_printer = None
             elif operation_type == 'receive_service':
                 cartridge.refill_count += 1
                 cartridge.condition = 'refilled'

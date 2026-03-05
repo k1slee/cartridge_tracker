@@ -24,4 +24,5 @@ urlpatterns = [
     path('cartridges/<int:pk>/send-to-service/', views.send_to_service, name='send_to_service'),
     path('report/attention/', views.print_attention_report, name='print_attention_report'),
     path('cartridges/bulk-return-from-service/', views.bulk_return_from_service, name='bulk_return_from_service'),
+    path('cartridges/<int:pk>/remove-from-printer/', views.remove_from_printer, name='remove_from_printer'),
 ]

@@ -85,6 +85,26 @@
                         </td>
                     </tr>
                     <tr>
+                        <th>Последняя отправка на заправку:</th>
+                        <td>
+                            {% if last_issue %}
+                                {{ last_issue.timestamp|date:"d.m.Y H:i" }} ({{ last_issue.to_location }})
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Последнее возвращение с заправки:</th>
+                        <td>
+                            {% if last_receive %}
+                                {{ last_receive.timestamp|date:"d.m.Y H:i" }} ({{ last_receive.from_location }} → {{ last_receive.to_location }})
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Состояние:</th>
                         <td>
                             <div class="d-flex align-items-center">
@@ -162,6 +182,8 @@
                                 <th>Тип</th>
                                 <th>Дата</th>
                                 <th>Пользователь</th>
+                                <th>Принтер</th>
+                                <th>Откуда → Куда</th>
                                 <th>Примечания</th>
                             </tr>
                         </thead>
@@ -171,6 +193,8 @@
                                 <td>{{ operation.get_operation_type_display }}</td>
                                 <td>{{ operation.timestamp|date:"d.m.Y H:i" }}</td>
                                 <td>{{ operation.user.username }}</td>
+                                <td>{% if operation.printer %}{{ operation.printer }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+                                <td>{{ operation.from_location }} → {{ operation.to_location }}</td>
                                 <td>{{ operation.notes|default:"" }}</td>
                             </tr>
                             {% endfor %}
@@ -199,10 +223,12 @@
                         </a>
                     </div>
                     <div class="col-md-6">
-                        <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=remove" 
+                        <button 
+                           id="remove-btn"
+                           data-url="{% url 'cartridges:remove_from_printer' cartridge.pk %}"
                            class="btn btn-outline-secondary w-100 mb-2">
-                            <i class="fas fa-eject me-1"></i>Снять
-                        </a>
+                            <i class="fas fa-eject me-1"></i>Снять (на склад БПО)
+                        </button>
                     </div>
                     <div class="col-md-6">
                         <a href="{% url 'cartridges:operation_create_for_cartridge' cartridge.pk %}?operation_type=issue_service" 
@@ -225,6 +251,24 @@
                 </div>
             </div>
         </div>
+
+        <!-- Где был установлен -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Где был установлен</h5>
+            </div>
+            <div class="card-body">
+                {% if printers_used %}
+                    <ul class="list-unstyled mb-0">
+                        {% for p in printers_used %}
+                            <li><i class="fas fa-print me-2"></i>{{ p.printer__name }} ({{ p.printer__model }} / {{ p.printer__serial_number }})</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <span class="text-muted">Ещё не устанавливался</span>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -232,6 +276,41 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Снятие с принтера → склад БПО
+    const removeBtn = document.getElementById('remove-btn');
+    if (removeBtn) {
+        removeBtn.addEventListener('click', function() {
+            if (!confirm('Снять картридж и переместить на склад БПО?')) return;
+            const url = this.getAttribute('data-url');
+            const original = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Снятие...';
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('success', data.message);
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showNotification('error', data.error || 'Не удалось выполнить операцию');
+                    removeBtn.disabled = false;
+                    removeBtn.innerHTML = original;
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showNotification('error', 'Ошибка сети');
+                removeBtn.disabled = false;
+                removeBtn.innerHTML = original;
+            });
+        });
+    }
     // Обработчик изменения состояния
     document.querySelectorAll('.condition-change').forEach(item => {
         item.addEventListener('click', function(e) {

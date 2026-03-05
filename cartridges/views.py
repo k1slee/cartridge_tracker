@@ -106,9 +106,24 @@ def cartridge_detail(request, pk):
         'user', 'from_location', 'to_location', 'printer'
     ).order_by('-timestamp')
     
+    last_issue = Operation.objects.filter(
+        cartridge=cartridge, operation_type='issue_service'
+    ).order_by('-timestamp').first()
+    last_receive = Operation.objects.filter(
+        cartridge=cartridge, operation_type='receive_service'
+    ).order_by('-timestamp').first()
+    printers_used = (Operation.objects
+                     .filter(cartridge=cartridge, operation_type__in=['install', 'remove'])
+                     .exclude(printer__isnull=True)
+                     .values('printer__id', 'printer__name', 'printer__model', 'printer__serial_number')
+                     .distinct())
+    
     context = {
         'cartridge': cartridge,
         'operations': operations,
+        'last_issue': last_issue,
+        'last_receive': last_receive,
+        'printers_used': printers_used,
     }
     return render(request, 'cartridges/cartridge_detail.html', context)
 
@@ -476,6 +491,56 @@ def send_to_service(request, pk):
             'status_display': cartridge.get_current_status_display()
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+@require_POST
+def remove_from_printer(request, pk):
+    """Снять картридж с принтера и переместить на 'на складе БПО'"""
+    try:
+        cartridge = get_object_or_404(Cartridge, pk=pk)
+        if cartridge.current_status != 'installed' or not cartridge.installed_in_printer:
+            return JsonResponse({
+                'success': False,
+                'error': 'Картридж не установлен в принтере'
+            }, status=400)
+        
+        # Ищем склад БПО по имени, иначе любой активный склад
+        warehouse = (Location.objects
+                     .filter(name__iexact='на складе БПО', is_active=True)
+                     .first())
+        if not warehouse:
+            warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
+        if not warehouse:
+            return JsonResponse({
+                'success': False,
+                'error': 'Не найден активный склад'
+            }, status=400)
+        
+        from_location = cartridge.current_location
+        installed_printer = cartridge.installed_in_printer
+        
+        Operation.objects.create(
+            operation_type='remove',
+            cartridge=cartridge,
+            from_location=from_location,
+            to_location=warehouse,
+            printer=installed_printer,
+            user=request.user,
+            reason='Снятие с принтера',
+            notes='Автоматическое снятие. Перемещён на склад БПО'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Картридж {cartridge.serial_number} снят и перемещён на {warehouse.name}',
+            'status': 'in_stock',
+            'status_display': cartridge.get_current_status_display()
+        })
     except Exception as e:
         return JsonResponse({
             'success': False,
