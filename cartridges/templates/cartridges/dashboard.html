@@ -199,11 +199,12 @@
                 {% for consumable in attention_consumables %}
                 <div class="list-group-item {% if consumable.condition == 'needs_repair' %}border-start border-3 border-danger{% endif %}">
                     <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">
+                        <h6 class="mb-1 d-flex align-items-center gap-2">
                             {% if consumable.condition == 'needs_repair' %}
                             <i class="fas fa-exclamation-circle text-danger me-1"></i>
                             {% endif %}
                             {{ consumable.serial_number }}
+                            <input class="form-check-input marker-toggle" type="checkbox" data-cartridge-id="{{ consumable.pk }}" {% if consumable.marked_with_marker %}checked{% endif %} title="Помечен маркером">
                         </h6>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" 
@@ -499,6 +500,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 showNotification('error', 'Ошибка сети');
                 console.error('Error:', error);
             });
+        });
+    });
+
+    document.querySelectorAll('.marker-toggle').forEach(input => {
+        input.addEventListener('change', async function(e) {
+            const checkbox = e.currentTarget;
+            const cartridgeId = checkbox.getAttribute('data-cartridge-id');
+            const nextValue = checkbox.checked;
+            checkbox.disabled = true;
+            try {
+                const response = await fetch(`/cartridges/${cartridgeId}/update-marker/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `marked=${nextValue ? 1 : 0}`
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    checkbox.checked = !nextValue;
+                    showNotification('error', data.error || 'Ошибка при сохранении');
+                } else {
+                    checkbox.checked = !!data.marked;
+                    showNotification('success', data.message);
+                }
+            } catch (error) {
+                checkbox.checked = !nextValue;
+                showNotification('error', 'Ошибка сети');
+                console.error('Error:', error);
+            } finally {
+                checkbox.disabled = false;
+            }
         });
     });
     

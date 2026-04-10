@@ -384,6 +384,28 @@ def update_cartridge_condition(request, pk):
             'error': str(e)
         }, status=500)
 
+@login_required
+@require_POST
+def update_cartridge_marker(request, pk):
+    try:
+        cartridge = get_object_or_404(Cartridge, pk=pk)
+        marked_raw = request.POST.get('marked')
+        if marked_raw is None:
+            cartridge.marked_with_marker = not cartridge.marked_with_marker
+        else:
+            cartridge.marked_with_marker = marked_raw.lower() in ['1', 'true', 'on', 'yes']
+        cartridge.save()
+        return JsonResponse({
+            'success': True,
+            'marked': cartridge.marked_with_marker,
+            'message': 'Помечено маркером' if cartridge.marked_with_marker else 'Снята отметка маркера',
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
 def get_condition_badge_class(condition):
     """Возвращает CSS класс для бейджа состояния"""
     badge_classes = {

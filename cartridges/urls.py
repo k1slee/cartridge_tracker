@@ -20,6 +20,7 @@ urlpatterns = [
     path('api/locations-by-operation/', views.get_locations_by_operation_type, name='locations_by_operation'),
     path('api/search-models/', views.search_cartridge_models, name='search_models'),
     path('cartridges/<int:pk>/update-condition/', views.update_cartridge_condition, name='update_cartridge_condition'),
+    path('cartridges/<int:pk>/update-marker/', views.update_cartridge_marker, name='update_cartridge_marker'),
     path('cartridges/bulk-send-to-service/', views.bulk_send_to_service, name='bulk_send_to_service'),
     path('cartridges/<int:pk>/send-to-service/', views.send_to_service, name='send_to_service'),
     path('report/attention/', views.print_attention_report, name='print_attention_report'),

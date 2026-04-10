@@ -100,6 +100,7 @@ class Cartridge(models.Model):
     date_of_introduction = models.DateField(default=timezone.now, verbose_name='Дата ввода в эксплуатацию')
     refill_count = models.IntegerField(default=0, verbose_name='Количество заправок')
     condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default='new', verbose_name='Состояние')
+    marked_with_marker = models.BooleanField(default=False, verbose_name='Помечен маркером', db_index=True)
     notes = models.TextField(blank=True, verbose_name='Примечания')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

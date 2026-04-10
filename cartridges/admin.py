@@ -57,8 +57,8 @@ class PrinterAdmin(admin.ModelAdmin):
 
 @admin.register(Cartridge)
 class CartridgeAdmin(admin.ModelAdmin):
-    list_display = ['serial_number', 'consumable_type', 'model', 'current_status', 'current_location', 'refill_count', 'condition']
-    list_filter = ['consumable_type', 'current_status', 'condition', 'model', 'current_location']
+    list_display = ['serial_number', 'consumable_type', 'model', 'current_status', 'current_location', 'refill_count', 'condition', 'marked_with_marker']
+    list_filter = ['consumable_type', 'current_status', 'condition', 'marked_with_marker', 'model', 'current_location']
     search_fields = ['serial_number', 'model__name']
     readonly_fields = ['created_at', 'updated_at']
     
@@ -67,7 +67,7 @@ class CartridgeAdmin(admin.ModelAdmin):
             'fields': ['serial_number', 'consumable_type', 'model', 'current_status', 'current_location']
         }),
         ('Статистика', {
-            'fields': ['refill_count', 'condition'],
+            'fields': ['refill_count', 'condition', 'marked_with_marker'],
             'classes': ['collapse']
         }),
         ('Дополнительно', {
