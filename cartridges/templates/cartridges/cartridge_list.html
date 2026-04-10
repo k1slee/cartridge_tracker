@@ -78,6 +78,12 @@
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" value="1" id="unmarked" name="unmarked" {% if request.GET.unmarked == "1" %}checked{% endif %}>
+                    <label class="form-check-label" for="unmarked">Только не помеченные</label>
+                </div>
+            </div>
             <div class="col-md-12 mt-2 d-flex align-items-center">
                 <button type="submit" class="btn btn-primary me-2">
                     <i class="fas fa-filter me-1"></i>Применить фильтры
@@ -104,6 +110,7 @@
                 <thead>
                     <tr>
                         <th>Серийный номер</th>
+                        <th>Маркер</th>
                         <th>Тип</th>
                         <th>Модель</th>
                         <th>Статус</th>
@@ -122,6 +129,9 @@
                             {% if consumable.condition == 'needs_repair' or consumable.refill_count >= consumable.model.max_refills %}
                             <i class="fas fa-exclamation-triangle text-warning ms-1" title="Требует внимания"></i>
                             {% endif %}
+                        </td>
+                        <td>
+                            <input class="form-check-input marker-toggle" type="checkbox" data-cartridge-id="{{ consumable.pk }}" {% if consumable.marked_with_marker %}checked{% endif %}>
                         </td>
                         <td>
                             <span class="badge {% if consumable.consumable_type == 'drum' %}bg-info{% else %}bg-primary{% endif %}">
@@ -231,4 +241,71 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+if (typeof window.showNotification !== 'function') {
+    window.showNotification = function(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 340px;';
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        setTimeout(() => { if (alertDiv.parentNode) alertDiv.remove(); }, 2500);
+    }
+}
+
+document.querySelectorAll('.marker-toggle').forEach(input => {
+    input.addEventListener('change', async function(e) {
+        const checkbox = e.currentTarget;
+        const cartridgeId = checkbox.getAttribute('data-cartridge-id');
+        const nextValue = checkbox.checked;
+        checkbox.disabled = true;
+        try {
+            const response = await fetch(`/cartridges/${cartridgeId}/update-marker/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `marked=${nextValue ? 1 : 0}`
+            });
+            const data = await response.json();
+            if (!data.success) {
+                checkbox.checked = !nextValue;
+                showNotification('error', data.error || 'Ошибка при сохранении');
+            } else {
+                checkbox.checked = !!data.marked;
+                showNotification('success', data.message);
+            }
+        } catch (error) {
+            checkbox.checked = !nextValue;
+            showNotification('error', 'Ошибка сети');
+        } finally {
+            checkbox.disabled = false;
+        }
+    });
+});
+</script>
 {% endblock %}

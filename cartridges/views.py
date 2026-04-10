@@ -68,6 +68,7 @@ def cartridge_list(request):
     location_id = request.GET.get('location')
     condition = request.GET.get('condition')
     needs_attention = request.GET.get('needs_attention')
+    unmarked = request.GET.get('unmarked')
     
     if consumable_type:
         consumables = consumables.filter(consumable_type=consumable_type)
@@ -85,6 +86,8 @@ def cartridge_list(request):
             Q(condition='needs_repair') | 
             Q(refill_count__gte=F('model__max_refills'))
         )
+    if unmarked == '1':
+        consumables = consumables.filter(marked_with_marker=False)
     
     context = {
         'consumables': consumables,
