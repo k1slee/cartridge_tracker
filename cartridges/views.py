@@ -33,16 +33,22 @@ def dashboard(request):
     attention_consumables = Cartridge.objects.filter(
         Q(condition='needs_repair') | 
         Q(refill_count__gte=F('model__max_refills'))
+    ).exclude(
+        current_status='disposed'
     ).order_by('-condition', '-refill_count')
     
     # Дополнительная статистика для кнопки
     needs_repair_count = Cartridge.objects.filter(
-        condition='needs_repair',
-        current_status__in=['in_stock', 'installed']
+        condition='needs_repair'
+    ).exclude(
+        current_status='disposed'
     ).count()
     
     max_refills_count = Cartridge.objects.filter(
-        refill_count__gte=F('model__max_refills'),
+        refill_count__gte=F('model__max_refills')
+    ).exclude(
+        current_status='disposed'
+    ).exclude(
         condition='needs_repair'
     ).count()
     
@@ -428,11 +434,9 @@ from django.views.decorators.http import require_POST
 def bulk_send_to_service(request):
     """Массовая отправка картриджей на заправку"""
     try:
-        candidates = Cartridge.objects.filter(
-            Q(condition='needs_repair') | Q(refill_count__gte=F('model__max_refills'))
-        ).exclude(current_status__in=['at_service', 'disposed'])
-        # Берём все, кто требует внимания, кроме уже на заправке и списанных
-        cartridges_to_service = candidates
+        cartridges_to_service = (Cartridge.objects
+                                 .filter(condition='needs_repair')
+                                 .exclude(current_status__in=['at_service', 'disposed']))
         
         count = 0
         errors = []
@@ -620,12 +624,14 @@ def print_attention_report(request):
     # Получаем те же картриджи, что и для дашборда
     attention_consumables = Cartridge.objects.filter(
         Q(condition='needs_repair') | 
-        Q(refill_count__gt=F('model__max_refills'))
+        Q(refill_count__gte=F('model__max_refills'))
+    ).exclude(
+        current_status='disposed'
     ).select_related('model', 'installed_in_printer', 'current_location')  # Изменено здесь
     
     # Разделяем на две категории для отчёта
     needs_repair = attention_consumables.filter(condition='needs_repair')
-    max_refills = attention_consumables.filter(refill_count__gt=F('model__max_refills'))
+    max_refills = attention_consumables.filter(refill_count__gte=F('model__max_refills')).exclude(condition='needs_repair')
     
     context = {
         'needs_repair': needs_repair,
@@ -683,14 +689,6 @@ def bulk_return_from_service(request):
                 
                 # Сохраняем старую локацию
                 from_location = cartridge.current_location
-                
-                # Обновляем статус и состояние
-                cartridge.current_status = 'in_stock'  # На склад
-                cartridge.current_location = warehouse
-                cartridge.condition = 'refilled'  # Ставим состояние "Заправлен"
-                cartridge.save()
-                
-                print(f"  - Обновлен: статус={cartridge.current_status}, состояние={cartridge.condition}")
                 
                 # 4. Создаем операцию
                 # Проверяем, есть ли тип 'return_service' или используем 'receive_service'

@@ -57,7 +57,7 @@ TEMPLATES = [
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.environ.get('SQLITE_PATH') or (BASE_DIR / 'db.sqlite3'),
+        'NAME': os.environ.get('SQLITE_PATH') or os.environ.get('DJANGO_SQLITE_PATH') or (BASE_DIR / 'db.sqlite3'),
     }
 }
 
