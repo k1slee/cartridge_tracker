@@ -167,13 +167,20 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge 
-                                {% if consumable.condition == 'new' %}bg-success
-                                {% elif consumable.condition == 'working' %}bg-primary
-                                {% elif consumable.condition == 'refilled' %}bg-info
-                                {% else %}bg-warning{% endif %}">
-                                {{ consumable.get_condition_display }}
-                            </span>
+                            <div class="d-flex align-items-center">
+                                <span id="condition-badge-{{ consumable.pk }}" class="badge 
+                                    {% if consumable.condition == 'new' %}bg-success
+                                    {% elif consumable.condition == 'working' %}bg-primary
+                                    {% elif consumable.condition == 'refilled' %}bg-info
+                                    {% else %}bg-warning{% endif %}">
+                                    {{ consumable.get_condition_display }}
+                                </span>
+                                {% if consumable.condition != 'needs_repair' %}
+                                <button type="button" class="btn btn-sm btn-outline-warning ms-2 set-needs-repair" data-cartridge-id="{{ consumable.pk }}" title="Пометить как требует ремонта">
+                                    <i class="fas fa-wrench"></i>
+                                </button>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
@@ -304,6 +311,45 @@ document.querySelectorAll('.marker-toggle').forEach(input => {
             showNotification('error', 'Ошибка сети');
         } finally {
             checkbox.disabled = false;
+        }
+    });
+});
+
+document.querySelectorAll('.set-needs-repair').forEach(button => {
+    button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const btn = e.currentTarget;
+        const cartridgeId = btn.getAttribute('data-cartridge-id');
+        const badge = document.getElementById(`condition-badge-${cartridgeId}`);
+        if (!badge) return;
+        btn.disabled = true;
+        const originalBadge = badge.innerHTML;
+        badge.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+            const response = await fetch(`/cartridges/${cartridgeId}/update-condition/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: 'condition=needs_repair'
+            });
+            const data = await response.json();
+            if (!data.success) {
+                badge.innerHTML = originalBadge;
+                showNotification('error', data.error || 'Ошибка при обновлении');
+                btn.disabled = false;
+                return;
+            }
+            badge.innerHTML = data.condition_display;
+            badge.className = `badge ${data.badge_class || 'bg-warning'}`;
+            showNotification('success', data.message);
+            btn.remove();
+        } catch (error) {
+            badge.innerHTML = originalBadge;
+            showNotification('error', 'Ошибка сети');
+            btn.disabled = false;
         }
     });
 });

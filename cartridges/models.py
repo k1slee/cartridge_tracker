@@ -133,6 +133,7 @@ class Operation(models.Model):
         ('receive_service', 'Приём с заправки'),
         ('install', 'Установка в принтер'),
         ('remove', 'Снятие с принтера'),
+        ('condition_change', 'Изменение состояния'),
         ('transfer', 'Перемещение'),
         ('dispose', 'Списание'),
     ]

@@ -365,7 +365,7 @@ def update_cartridge_condition(request, pk):
             
             # Логируем операцию изменения состояния
             Operation.objects.create(
-                operation_type='transfer',
+                operation_type='condition_change',
                 cartridge=cartridge,
                 from_location=cartridge.current_location,
                 to_location=cartridge.current_location,
