@@ -152,7 +152,12 @@
                         <td>{{ consumable.current_location.name }}</td>
                         <td>
                             {% if consumable.installed_in_printer %}
-                                {{ consumable.installed_in_printer.name }}
+                                <div class="d-flex align-items-center">
+                                    <span>{{ consumable.installed_in_printer.name }}</span>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2 remove-from-printer" data-cartridge-id="{{ consumable.pk }}" title="Снять с принтера">
+                                        <i class="fas fa-eject"></i>
+                                    </button>
+                                </div>
                             {% else %}
                                 <span class="text-muted">—</span>
                             {% endif %}
