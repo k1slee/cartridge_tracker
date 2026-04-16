@@ -177,15 +177,8 @@ def operation_create(request, cartridge_pk=None):
         if form.is_valid():
             operation = form.save(commit=False)
             operation.user = request.user
-            # Автозаполнение "Откуда" для установки из "БПО склад"
-            if operation.operation_type == 'install' and not operation.from_location:
-                warehouse = (Location.objects
-                             .filter(name__iexact='БПО склад', is_active=True)
-                             .first())
-                if not warehouse:
-                    warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
-                if warehouse:
-                    operation.from_location = warehouse
+            if operation.operation_type == 'install' and not operation.from_location and operation.cartridge_id:
+                operation.from_location = operation.cartridge.current_location
             operation.save()
             
             messages.success(request, f'Операция "{operation.get_operation_type_display()}" успешно создана')
@@ -195,15 +188,8 @@ def operation_create(request, cartridge_pk=None):
         op_type = request.GET.get('operation_type')
         if op_type:
             initial['operation_type'] = op_type
-        # Для установки предлагаем "БПО склад" как откуда
-        if op_type == 'install':
-            warehouse = (Location.objects
-                         .filter(name__iexact='БПО склад', is_active=True)
-                         .first())
-            if not warehouse:
-                warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
-            if warehouse:
-                initial['from_location'] = warehouse.id
+        if op_type == 'install' and cartridge:
+            initial['from_location'] = cartridge.current_location_id
         form = OperationForm(initial=initial)
     
     context = {
@@ -555,6 +541,59 @@ def send_to_service(request, pk):
             'status_display': cartridge.get_current_status_display()
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@login_required
+@require_POST
+def return_from_service(request, pk):
+    """Быстрое возвращение одного картриджа с заправки на склад"""
+    try:
+        cartridge = get_object_or_404(Cartridge, pk=pk)
+
+        if cartridge.current_status != 'at_service':
+            return JsonResponse({
+                'success': False,
+                'error': 'Картридж не находится на заправке'
+            }, status=400)
+
+        warehouse = (Location.objects
+                     .filter(Q(name__iexact='на складе БПО') | Q(name__iexact='БПО склад'), is_active=True)
+                     .first())
+        if not warehouse:
+            warehouse = Location.objects.filter(type='warehouse', is_active=True).first()
+        if not warehouse:
+            return JsonResponse({
+                'success': False,
+                'error': 'Не найден активный склад'
+            }, status=400)
+
+        from_location = cartridge.current_location
+
+        Operation.objects.create(
+            operation_type='receive_service',
+            cartridge=cartridge,
+            from_location=from_location,
+            to_location=warehouse,
+            user=request.user,
+            reason='Возврат с заправки',
+            notes='Быстрый возврат со страницы «Все расходники»'
+        )
+
+        cartridge.refresh_from_db()
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Картридж {cartridge.serial_number} возвращён с заправки на {warehouse.name}',
+            'status': cartridge.current_status,
+            'status_display': cartridge.get_current_status_display(),
+            'condition': cartridge.condition,
+            'condition_display': cartridge.get_condition_display(),
+            'refill_count': cartridge.refill_count,
+        })
     except Exception as e:
         return JsonResponse({
             'success': False,

@@ -192,6 +192,38 @@
                                    class="btn btn-outline-success" title="Создать операцию">
                                     <i class="fas fa-exchange-alt"></i>
                                 </a>
+                                <button type="button" class="btn btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Меню</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'cartridges:operation_create_for_cartridge' consumable.pk %}?operation_type=install">
+                                            <i class="fas fa-plug me-2"></i>Установить в принтер
+                                        </a>
+                                    </li>
+                                    {% if consumable.current_status == 'installed' %}
+                                    <li>
+                                        <a class="dropdown-item remove-from-printer" href="#" data-cartridge-id="{{ consumable.pk }}">
+                                            <i class="fas fa-eject me-2"></i>Снять с принтера
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    {% if consumable.current_status == 'at_service' %}
+                                    <li>
+                                        <a class="dropdown-item return-from-service" href="#" data-cartridge-id="{{ consumable.pk }}">
+                                            <i class="fas fa-undo me-2"></i>Вернуть с заправки
+                                        </a>
+                                    </li>
+                                    {% else %}
+                                    {% if consumable.current_status != 'disposed' %}
+                                    <li>
+                                        <a class="dropdown-item send-to-service" href="#" data-cartridge-id="{{ consumable.pk }}">
+                                            <i class="fas fa-tools me-2"></i>Отправить на заправку
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    {% endif %}
+                                </ul>
                             </div>
                         </td>
                     </tr>
@@ -350,6 +382,73 @@ document.querySelectorAll('.set-needs-repair').forEach(button => {
             badge.innerHTML = originalBadge;
             showNotification('error', 'Ошибка сети');
             btn.disabled = false;
+        }
+    });
+});
+
+async function postAction(url) {
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken'),
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: ''
+    });
+    return response.json();
+}
+
+document.querySelectorAll('.send-to-service').forEach(link => {
+    link.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const cartridgeId = this.getAttribute('data-cartridge-id');
+        try {
+            const data = await postAction(`/cartridges/${cartridgeId}/send-to-service/`);
+            if (!data.success) {
+                showNotification('error', data.error || 'Ошибка');
+                return;
+            }
+            showNotification('success', data.message);
+            window.location.reload();
+        } catch (error) {
+            showNotification('error', 'Ошибка сети');
+        }
+    });
+});
+
+document.querySelectorAll('.return-from-service').forEach(link => {
+    link.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const cartridgeId = this.getAttribute('data-cartridge-id');
+        try {
+            const data = await postAction(`/cartridges/${cartridgeId}/return-from-service/`);
+            if (!data.success) {
+                showNotification('error', data.error || 'Ошибка');
+                return;
+            }
+            showNotification('success', data.message);
+            window.location.reload();
+        } catch (error) {
+            showNotification('error', 'Ошибка сети');
+        }
+    });
+});
+
+document.querySelectorAll('.remove-from-printer').forEach(link => {
+    link.addEventListener('click', async function(e) {
+        e.preventDefault();
+        const cartridgeId = this.getAttribute('data-cartridge-id');
+        try {
+            const data = await postAction(`/cartridges/${cartridgeId}/remove-from-printer/`);
+            if (!data.success) {
+                showNotification('error', data.error || 'Ошибка');
+                return;
+            }
+            showNotification('success', data.message);
+            window.location.reload();
+        } catch (error) {
+            showNotification('error', 'Ошибка сети');
         }
     });
 });
